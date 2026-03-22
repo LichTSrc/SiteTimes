@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteio de Times</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.29.0/dist/supabase.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            display: flex;
+            margin: 0;
+        }
+
+        .main {
+            flex: 1;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #f0f0f0;
+            padding: 10px;
+        }
+
+        .ball {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: gray;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            margin: 5px;
+            cursor: pointer;
+            color: white;
+        }
+
+        .blue { background: blue; }
+        .red { background: red; }
+
+        .disabled {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        button {
+            padding: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main">
+    <h1>Sorteio</h1>
+
+    <input id="name" placeholder="Seu nome">
+    <br><br>
+    <button onclick="entrar()">Entrar</button>
+    <br>
+    <button onclick="resetar()">🔄 Resetar</button>
+
+    <p id="msg"></p>
+
+    <div id="balls"></div>
+</div>
+
+<div class="sidebar">
+    <h3>Times</h3>
+
+    <h4>🔵 Azul</h4>
+    <ul id="blueList"></ul>
+
+    <h4>🔴 Vermelho</h4>
+    <ul id="redList"></ul>
+</div>
+
+<script>
+// CONFIG SUPABASE
+const supabase = supabase.createClient('postgresql://postgres:YOUR_PASSWORD@db.iwynadulybneuokisfhb.supabase.co:5432/postgres', 'sb_publishable_glpMfgTZwL0e4pJe2JfvBw_6ZsUVI8w');
+
+// Gerar bolas
+let times = ["blue","blue","blue","blue","blue","red","red","red","red","red"];
+times.sort(() => Math.random() - 0.5);
+
+const ballsDiv = document.getElementById("balls");
+
+// Criar bolas
+times.forEach((t, i) => {
+    let b = document.createElement("div");
+    b.className = "ball";
+    b.innerText = i+1;
+    b.dataset.numero = i+1;
+
+    b.onclick = () => escolher(i, b);
+
+    ballsDiv.appendChild(b);
+});
+
+function entrar() {
+    const nome = document.getElementById("name").value;
+
+    if (!nome) return;
+
+    if (localStorage.getItem("jogou")) {
+        document.getElementById("msg").innerText = "Você já participou!";
+        return;
+    }
+
+    window.nome = nome;
+}
+
+async function escolher(i, el) {
+    if (!window.nome) {
+        alert("Digite seu nome!");
+        return;
+    }
+
+    if (localStorage.getItem("jogou")) {
+        document.getElementById("msg").innerText = "Você já participou!";
+        return;
+    }
+
+    const { data, error } = await supabase
+        .from('jogadores')
+        .select('*')
+        .eq('bola', i);
+
+    if (data.length > 0) {
+        alert("Essa bola já foi escolhida!");
+        return;
+    }
+
+    const time = times[i];
+
+    // Salva banco
+    const { error: insertError } = await supabase
+        .from('jogadores')
+        .insert([
+            { nome: window.nome, bola: i, time: time }
+        ]);
+
+    if (insertError) {
+        console.error(insertError);
+        return;
+    }
+
+    localStorage.setItem("jogou", "true");
+
+    document.getElementById("msg").innerText =
+        "Você está no time " + (time === "blue" ? "AZUL" : "VERMELHO");
+}
+
+supabase
+    .from('jogadores')
+    .on('INSERT', (payload) => {
+        updatePlayersList();
+    })
+    .subscribe();
+
+async function updatePlayersList() {
+    const { data, error } = await supabase
+        .from('jogadores')
+        .select('*');
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    document.getElementById("blueList").innerHTML = "";
+    document.getElementById("redList").innerHTML = "";
+
+    const balls = document.querySelectorAll(".ball");
+
+    balls.forEach(b => {
+        b.classList.remove("blue", "red", "disabled");
+        b.innerText = b.dataset.numero;
+    });
+
+    data.forEach(j => {
+        let ball = balls[j.bola];
+        ball.classList.add(j.time);
+        ball.classList.add("disabled");
+        ball.innerText = "";
+
+        let li = document.createElement("li");
+        li.innerText = j.nome;
+
+        if (j.time === "blue") {
+            document.getElementById("blueList").appendChild(li);
+        } else {
+            document.getElementById("redList").appendChild(li);
+        }
+    });
+}
+
+
+function resetar() {
+    const senha = prompt("Digite a senha para resetar:");
+
+    if (senha !== "1234") {
+        alert("Senha incorreta!");
+        return;
+    }
+
+    supabase
+        .from('jogadores')
+        .delete()
+        .neq('id', 0)
+        .then(() => {
+            localStorage.removeItem("jogou");
+            document.getElementById("msg").innerText = "Sistema resetado!";
+        });
+}
+</script>
+
+</body>
+</html>
