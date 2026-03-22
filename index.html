@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sorteio de Times</title>
 
+    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.29.0/dist/supabase.min.js"></script>
 
     <style>
@@ -80,8 +81,11 @@
 </div>
 
 <script>
-// CONFIG SUPABASE
-const supabase = supabase.createClient('postgresql://postgres:YOUR_PASSWORD@db.iwynadulybneuokisfhb.supabase.co:5432/postgres', 'sb_publishable_glpMfgTZwL0e4pJe2JfvBw_6ZsUVI8w');
+// 🔥 CONFIG SUPABASE (substitua pelos seus dados)
+const supabase = supabase.createClient(
+    'postgresql://postgres:YOUR_PASSWORD@db.iwynadulybneuokisfhb.supabase.co:5432/postgres',
+    'sb_publishable_glpMfgTZwL0e4pJe2JfvBw_6ZsUVI8w'
+);
 
 // Gerar bolas
 let times = ["blue","blue","blue","blue","blue","red","red","red","red","red"];
@@ -101,10 +105,13 @@ times.forEach((t, i) => {
     ballsDiv.appendChild(b);
 });
 
+// Entrar
 function entrar() {
     const nome = document.getElementById("name").value;
-
-    if (!nome) return;
+    if (!nome) {
+        document.getElementById("msg").innerText = "Por favor, digite seu nome!";
+        return;
+    }
 
     if (localStorage.getItem("jogou")) {
         document.getElementById("msg").innerText = "Você já participou!";
@@ -112,11 +119,14 @@ function entrar() {
     }
 
     window.nome = nome;
+    document.getElementById("msg").innerText = "Bem-vindo, " + nome + "!";
+    console.log("Jogador entrou:", nome); // Confirmação no console
 }
 
+// Escolher bola
 async function escolher(i, el) {
     if (!window.nome) {
-        alert("Digite seu nome!");
+        alert("Digite seu nome antes de escolher uma bolinha!");
         return;
     }
 
@@ -125,6 +135,7 @@ async function escolher(i, el) {
         return;
     }
 
+    // Verifica se a bola já foi escolhida
     const { data, error } = await supabase
         .from('jogadores')
         .select('*')
@@ -137,7 +148,7 @@ async function escolher(i, el) {
 
     const time = times[i];
 
-    // Salva banco
+    // Salva a escolha no banco
     const { error: insertError } = await supabase
         .from('jogadores')
         .insert([
@@ -145,16 +156,22 @@ async function escolher(i, el) {
         ]);
 
     if (insertError) {
-        console.error(insertError);
+        console.error("Erro ao adicionar jogador:", insertError);
         return;
     }
 
     localStorage.setItem("jogou", "true");
 
-    document.getElementById("msg").innerText =
-        "Você está no time " + (time === "blue" ? "AZUL" : "VERMELHO");
+    document.getElementById("msg").innerText = "Você está no time " + (time === "blue" ? "AZUL" : "VERMELHO");
+
+    el.classList.add(time);
+    el.classList.add("disabled");
+    el.innerText = "";
+
+    console.log("Jogador adicionado ao time", time); // Confirmação no console
 }
 
+// Atualizar lista de jogadores em tempo real
 supabase
     .from('jogadores')
     .on('INSERT', (payload) => {
@@ -177,11 +194,13 @@ async function updatePlayersList() {
 
     const balls = document.querySelectorAll(".ball");
 
+    // Reset visual das bolas
     balls.forEach(b => {
         b.classList.remove("blue", "red", "disabled");
         b.innerText = b.dataset.numero;
     });
 
+    // Exibir jogadores na lista
     data.forEach(j => {
         let ball = balls[j.bola];
         ball.classList.add(j.time);
@@ -199,7 +218,7 @@ async function updatePlayersList() {
     });
 }
 
-
+// Resetar dados
 function resetar() {
     const senha = prompt("Digite a senha para resetar:");
 
