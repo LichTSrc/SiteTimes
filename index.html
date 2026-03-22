@@ -52,6 +52,12 @@
             padding: 10px;
             margin-top: 10px;
         }
+
+        #balls {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 <body>
@@ -83,35 +89,36 @@
 <script>
 // 🔥 CONFIG SUPABASE (substitua pelos seus dados)
 const supabase = supabase.createClient(
-    'postgresql://postgres:YOUR_PASSWORD@db.iwynadulybneuokisfhb.supabase.co:5432/postgres',
+    'https://db.iwynadulybneuokisfhb.supabase.co',
     'sb_publishable_glpMfgTZwL0e4pJe2JfvBw_6ZsUVI8w'
 );
 
-// Gerar bolas
-let times = ["blue","blue","blue","blue","blue","red","red","red","red","red"];
-times.sort(() => Math.random() - 0.5);
+// Gerar bolas após o carregamento da página
+window.onload = () => {
+    // Gerar bolas
+    let times = ["blue", "blue", "blue", "blue", "blue", "red", "red", "red", "red", "red"];
+    times.sort(() => Math.random() - 0.5);
 
-const ballsDiv = document.getElementById("balls");
+    const ballsDiv = document.getElementById("balls");
 
-// Criar bolas
-times.forEach((t, i) => {
-    let b = document.createElement("div");
-    b.className = "ball";
-    b.innerText = i+1;
-    b.dataset.numero = i+1;
+    // Criar bolas
+    times.forEach((t, i) => {
+        let b = document.createElement("div");
+        b.className = "ball";
+        b.innerText = i + 1;
+        b.dataset.numero = i + 1;
 
-    b.onclick = () => escolher(i, b);
+        b.onclick = () => escolher(i, b);
 
-    ballsDiv.appendChild(b);
-});
+        ballsDiv.appendChild(b);
+    });
+};
 
 // Entrar
 function entrar() {
     const nome = document.getElementById("name").value;
-    if (!nome) {
-        document.getElementById("msg").innerText = "Por favor, digite seu nome!";
-        return;
-    }
+
+    if (!nome) return;
 
     if (localStorage.getItem("jogou")) {
         document.getElementById("msg").innerText = "Você já participou!";
@@ -119,8 +126,6 @@ function entrar() {
     }
 
     window.nome = nome;
-    document.getElementById("msg").innerText = "Bem-vindo, " + nome + "!";
-    console.log("Jogador entrou:", nome); // Confirmação no console
 }
 
 // Escolher bola
@@ -156,66 +161,18 @@ async function escolher(i, el) {
         ]);
 
     if (insertError) {
-        console.error("Erro ao adicionar jogador:", insertError);
+        console.error(insertError);
         return;
     }
 
     localStorage.setItem("jogou", "true");
 
-    document.getElementById("msg").innerText = "Você está no time " + (time === "blue" ? "AZUL" : "VERMELHO");
+    document.getElementById("msg").innerText =
+        "Você está no time " + (time === "blue" ? "AZUL" : "VERMELHO");
 
     el.classList.add(time);
     el.classList.add("disabled");
     el.innerText = "";
-
-    console.log("Jogador adicionado ao time", time); // Confirmação no console
-}
-
-// Atualizar lista de jogadores em tempo real
-supabase
-    .from('jogadores')
-    .on('INSERT', (payload) => {
-        updatePlayersList();
-    })
-    .subscribe();
-
-async function updatePlayersList() {
-    const { data, error } = await supabase
-        .from('jogadores')
-        .select('*');
-
-    if (error) {
-        console.error(error);
-        return;
-    }
-
-    document.getElementById("blueList").innerHTML = "";
-    document.getElementById("redList").innerHTML = "";
-
-    const balls = document.querySelectorAll(".ball");
-
-    // Reset visual das bolas
-    balls.forEach(b => {
-        b.classList.remove("blue", "red", "disabled");
-        b.innerText = b.dataset.numero;
-    });
-
-    // Exibir jogadores na lista
-    data.forEach(j => {
-        let ball = balls[j.bola];
-        ball.classList.add(j.time);
-        ball.classList.add("disabled");
-        ball.innerText = "";
-
-        let li = document.createElement("li");
-        li.innerText = j.nome;
-
-        if (j.time === "blue") {
-            document.getElementById("blueList").appendChild(li);
-        } else {
-            document.getElementById("redList").appendChild(li);
-        }
-    });
 }
 
 // Resetar dados
